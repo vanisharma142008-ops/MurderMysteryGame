@@ -1,11 +1,13 @@
 import streamlit as st
 import google.generativeai as genai
 import json
+import time
+import random
 
 # ---------------- CONFIG ----------------
 
 st.set_page_config(
-    page_title="CASE FILES",
+    page_title="CASE FILES: Detective Mode",
     layout="wide"
 )
 
@@ -18,41 +20,45 @@ try:
 except:
     MODEL = None
 
-# ---------------- UI ----------------
+# ---------------- MODERN UI ----------------
 
 st.markdown("""
 <style>
 
-.stApp{
+.stApp {
     background: radial-gradient(circle at top, #0b0b0f, #050505);
-    color:white;
+    color: white;
+    font-family: Arial;
 }
 
-.title{
-    font-size:30px;
-    font-weight:800;
-    color:#ff2a2a;
-    margin-bottom:10px;
+/* Header Title */
+.title {
+    font-size: 34px;
+    font-weight: 900;
+    color: #ff2a2a;
+    letter-spacing: 1px;
 }
 
-.card{
-    background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
-    padding:12px;
-    border-radius:10px;
-    border:1px solid #2a2a2a;
-    margin-bottom:10px;
-    font-size:14px;
-    line-height:1.5;
+/* Glass Card */
+.card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    backdrop-filter: blur(6px);
 }
 
+/* Buttons */
 button {
-    border-radius:8px !important;
+    border-radius: 10px !important;
+    font-weight: 600;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- SESSION ----------------
+# ---------------- SESSION INIT ----------------
 
 for key, default in {
     "case": None,
@@ -66,95 +72,98 @@ for key, default in {
         st.session_state[key] = default
 
 
-# ---------------- CASE GENERATION ----------------
+# ---------------- AI CASE GENERATOR ----------------
 
 def generate_case():
 
-    if MODEL:
-        try:
-            prompt = """
-Create a murder mystery.
+    if not MODEL:
+        st.error("Gemini API not found. AI cases cannot be generated.")
+        return None
 
-Return ONLY JSON:
+    try:
+        seed = int(time.time() * 1000) + random.randint(1, 999999)
 
-{
-"title":"",
-"victim":"",
-"crime_scene":"",
-"murder_time":"",
-"weapon":"",
-"killer":"",
-"hint":"",
-"suspects":[
-{
-"name":"",
-"occupation":"",
-"relationship":"",
-"alibi":"",
-"secret":"",
-"motive":""
-}
+        prompt = f"""
+You are a world-class crime story writer.
+
+Generate a COMPLETELY UNIQUE murder mystery case.
+
+Rules:
+- Never reuse old patterns (no repeated motives like inheritance/revenge)
+- Make story fresh, cinematic, realistic
+- Ensure strong detective logic
+
+Random Seed: {seed}
+
+Return ONLY valid JSON:
+
+{{
+"title": "",
+"victim": "",
+"crime_scene": "",
+"murder_time": "",
+"weapon": "",
+"killer": "",
+"hint": "",
+"suspects": [
+{{
+"name": "",
+"occupation": "",
+"relationship": "",
+"alibi": "",
+"secret": "",
+"motive": ""
+}}
 ],
-"evidence":[
-{
-"name":"",
-"description":"",
-"points_to":""
-}
+"evidence": [
+{{
+"name": "",
+"description": "",
+"points_to": ""
+}}
 ],
-"contradictions":[
-{
-"title":"",
-"suspect":""
-}
+"contradictions": [
+{{
+"title": "",
+"suspect": ""
+}}
 ]
-}
+}}
 
-Exactly 4 suspects, 4 evidence, 4 contradictions.
-Keep it short.
+STRICT:
+- 4 suspects
+- 4 evidence items
+- 4 contradictions
+- Keep everything short and sharp
 """
 
-            response = MODEL.generate_content(prompt)
-            text = response.text.replace("```json", "").replace("```", "")
-            return json.loads(text)
+        response = MODEL.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 1.25,
+                "top_p": 0.95
+            }
+        )
 
-        except:
-            pass
+        text = response.text.replace("```json", "").replace("```", "").strip()
+        case = json.loads(text)
+        case["seed"] = seed
+        return case
 
-    # fallback
-    return {
-        "title": "The Blackwood Murder",
-        "victim": "Victor Blackwood",
-        "crime_scene": "Library",
-        "murder_time": "9:30 PM",
-        "weapon": "Letter Opener",
-        "killer": "Arthur Kane",
-        "hint": "Follow the inheritance.",
-        "suspects": [
-            {"name":"Arthur Kane","occupation":"Lawyer","relationship":"Business Partner","alibi":"Library","secret":"Debt","motive":"Inheritance"},
-            {"name":"Sophia Reed","occupation":"Artist","relationship":"Daughter","alibi":"Garden","secret":"Argument","motive":"Revenge"},
-            {"name":"Daniel Hart","occupation":"Doctor","relationship":"Friend","alibi":"Kitchen","secret":"Forgery","motive":"Money"},
-            {"name":"Naomi Cole","occupation":"Journalist","relationship":"Ex Employee","alibi":"Study","secret":"Blackmail","motive":"Exposure"}
-        ],
-        "evidence": [
-            {"name":"Bank Transfer","description":"Large payment","points_to":"Arthur Kane"},
-            {"name":"Threat Message","description":"Victim threatened","points_to":"Sophia Reed"},
-            {"name":"Fingerprint","description":"On weapon","points_to":"Arthur Kane"},
-            {"name":"Changed Will","description":"Inheritance altered","points_to":"Arthur Kane"}
-        ],
-        "contradictions": [
-            {"title":"Library camera inactive","suspect":"Arthur Kane"},
-            {"title":"No garden witness","suspect":"Sophia Reed"},
-            {"title":"Kitchen closed","suspect":"Daniel Hart"},
-            {"title":"Study locked","suspect":"Naomi Cole"}
-        ]
-    }
+    except Exception as e:
+        st.error(f"AI Error: {e}")
+        return None
 
 
-# ---------------- RESET ----------------
+# ---------------- RESET GAME ----------------
 
 def reset_game():
-    st.session_state.case = generate_case()
+    new_case = generate_case()
+
+    if new_case is None:
+        return
+
+    st.session_state.case = new_case
     st.session_state.score = 0
     st.session_state.found_evidence = []
     st.session_state.found_contradictions = []
@@ -171,7 +180,7 @@ with st.sidebar:
         reset_game()
         st.rerun()
 
-    if st.button("🔄 Restart Case", use_container_width=True):
+    if st.button("🔄 Restart Investigation", use_container_width=True):
         reset_game()
         st.rerun()
 
@@ -179,38 +188,27 @@ with st.sidebar:
 # ---------------- START SCREEN ----------------
 
 if st.session_state.case is None:
-    st.markdown("<div class='title'>CASE FILES</div>", unsafe_allow_html=True)
-    st.write("Start a new case to begin investigation.")
+    st.markdown("<div class='title'>CASE FILES: DETECTIVE MODE</div>", unsafe_allow_html=True)
+    st.write("Click **New Case** to start your investigation.")
     st.stop()
 
 case = st.session_state.case
 
-# toast only once
 if not st.session_state.toast_shown:
-    st.toast("New case loaded 🕵️", icon="🔴")
+    st.toast("New case loaded 🕵️‍♂️", icon="🔴")
     st.session_state.toast_shown = True
 
 
 # ---------------- HEADER ----------------
 
 st.markdown(f"""
-<div style="
-background:#121212;
-padding:15px;
-border-radius:12px;
-border:1px solid #2a2a2a;
-margin-bottom:15px;
-">
-
-<h3 style="color:#ff2a2a;margin:0;">🕵 {case['title']}</h3>
-
-<p>
-<b>Victim:</b> {case['victim']} <br>
-<b>Time:</b> {case['murder_time']} <br>
-<b>Weapon:</b> {case['weapon']} <br>
-<b>Score:</b> {st.session_state.score}
-</p>
-
+<div class="card">
+    <div class="title">🕵 {case['title']}</div>
+    <br>
+    <b>Victim:</b> {case['victim']} <br>
+    <b>Time:</b> {case['murder_time']} <br>
+    <b>Weapon:</b> {case['weapon']} <br>
+    <b>Score:</b> {st.session_state.score} <br>
 </div>
 """, unsafe_allow_html=True)
 
@@ -228,17 +226,17 @@ st.subheader("👥 Suspects")
 for s in case["suspects"]:
     st.markdown(f"""
     <div class="card">
-    <b>{s['name']}</b><br><br>
-    Occupation: {s['occupation']}<br>
-    Relationship: {s['relationship']}<br>
-    Alibi: {s['alibi']}<br>
-    Secret: {s['secret']}<br>
-    Motive: {s['motive']}
+        <b>{s['name']}</b><br><br>
+        🧠 Occupation: {s['occupation']}<br>
+        🤝 Relationship: {s['relationship']}<br>
+        🕒 Alibi: {s['alibi']}<br>
+        🔒 Secret: {s['secret']}<br>
+        🎯 Motive: {s['motive']}
     </div>
     """, unsafe_allow_html=True)
 
 
-# ---------------- EVIDENCE ----------------
+# ---------------- EVIDENCE SYSTEM ----------------
 
 st.subheader("🔍 Evidence Board")
 
@@ -248,7 +246,6 @@ for i, e in enumerate(case["evidence"]):
 
     if locked:
         st.button("🔒 Locked Evidence", disabled=True, key=f"lock{i}")
-
     else:
         if st.button(f"Reveal {e['name']}", key=f"e{i}"):
 
@@ -263,9 +260,10 @@ for i, e in enumerate(case["evidence"]):
 
                 st.rerun()
 
+
 for e in case["evidence"]:
     if e["name"] in st.session_state.found_evidence:
-        st.success(f"{e['name']} → {e['description']}")
+        st.success(f"🧩 {e['name']} → {e['description']}")
 
 
 # ---------------- CONTRADICTIONS ----------------
@@ -299,12 +297,12 @@ st.subheader("🎯 Final Accusation")
 
 names = [s["name"] for s in case["suspects"]]
 
-choice = st.selectbox("Choose Killer", names)
+choice = st.selectbox("Who is the killer?", names)
 
-if st.button("⚖ ACCUSE"):
+if st.button("⚖ Submit Accusation"):
 
     if choice == case["killer"]:
-        st.success("🎉 CASE SOLVED!")
+        st.success("🎉 CASE SOLVED! YOU ARE A MASTER DETECTIVE")
         st.balloons()
     else:
-        st.error(f"❌ Wrong! Killer was {case['killer']}")
+        st.error(f"❌ Wrong accusation! The real killer was {case['killer']}")
