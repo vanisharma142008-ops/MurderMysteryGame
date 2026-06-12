@@ -30,63 +30,65 @@ except:
 st.markdown("""
 <style>
 
-/* DARK CINEMATIC BACKGROUND */
+/* GLOBAL CINEMA DARK MODE */
 .stApp {
-    background: radial-gradient(circle at top, #0b0b0f, #000000);
+    background: radial-gradient(circle at top, #0a0a0f, #000000);
     color: white;
-    font-family: 'Arial';
 }
 
-/* TITLE (MOVIE STYLE) */
+/* TITLE GLITCH STYLE */
 .title {
-    font-size: 44px;
+    font-size: 46px;
     font-weight: 900;
-    letter-spacing: 3px;
-    color: #ff2b2b;
+    letter-spacing: 4px;
     text-align: center;
-    margin-bottom: 10px;
+    color: #ff2b2b;
+    text-shadow: 0 0 10px #ff2b2b;
 }
 
 /* SUBTITLE */
 .subtitle {
     text-align: center;
-    color: #aaaaaa;
-    margin-bottom: 20px;
+    color: #aaa;
+    font-size: 14px;
 }
 
-/* GLASS CARD */
+/* GLASS PANEL */
 .glass {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px;
     padding: 16px;
     backdrop-filter: blur(12px);
-    margin-bottom: 12px;
 }
 
 /* SUSPECT CARD */
 .suspect {
-    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    background: rgba(255,255,255,0.04);
     border-left: 3px solid #ff2b2b;
     padding: 14px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-}
-
-/* BUTTONS */
-.stButton>button {
     border-radius: 10px;
-    font-weight: 700;
-    border: 1px solid #333;
 }
 
-/* SCARY EFFECT BOX */
+/* EVIDENCE CARD */
 .evidence {
-    background: rgba(255,0,0,0.08);
-    border: 1px solid rgba(255,0,0,0.2);
+    background: rgba(0,255,100,0.06);
+    border-left: 4px solid #00ff88;
     padding: 10px;
     border-radius: 10px;
-    margin: 5px 0;
+}
+
+/* BUTTON STYLE */
+.stButton>button {
+    background: black;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 8px;
+}
+
+.stButton>button:hover {
+    border: 1px solid #ff2b2b;
+    box-shadow: 0 0 10px #ff2b2b;
 }
 
 </style>
@@ -105,6 +107,29 @@ for k, v in {
     if k not in st.session_state:
         st.session_state[k] = v
 
+def cinematic_intro():
+    st.markdown("""
+    <div style="text-align:center; padding:60px 20px;">
+        <div style="font-size:40px; font-weight:900; color:#ff2b2b; letter-spacing:3px;">
+            CASE FILES
+        </div>
+        <div style="color:#888; margin-top:10px;">
+            INITIATING INVESTIGATION SYSTEM...
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    progress = st.empty()
+
+    for i in range(1, 101, 3):
+        time.sleep(0.02)
+        progress.markdown(f"""
+        <div style="width:100%;background:#222;height:8px;border-radius:5px;">
+            <div style="width:{i}%;background:#ff2b2b;height:8px;border-radius:5px;"></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.success("🕵️ Case Loaded. Entering Crime Scene...")
 
 # ---------------- AI GENERATOR ----------------
 
@@ -205,17 +230,39 @@ def new_case():
 # ---------------- SIDEBAR ----------------
 
 with st.sidebar:
-    st.title("🕵️ DETECTIVE BOARD")
+    st.markdown("## 🕵️ DETECTIVE CONTROL PANEL")
+
+    st.markdown(f"""
+    <div style="
+        background: rgba(255,255,255,0.05);
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+    ">
+        <b>🎯 Score:</b> {st.session_state.score}<br>
+        <b>🔍 Evidence Found:</b> {len(st.session_state.evidence)}<br>
+        <b>⚠ Clues Unlocked:</b> {st.session_state.clue_level}
+    </div>
+    """, unsafe_allow_html=True)
+
+    progress = min(100, len(st.session_state.evidence) * 20)
+
+    st.markdown(f"""
+    <div style="margin-bottom:10px;">
+        <b>Case Progress</b>
+        <div style="background:#222;height:10px;border-radius:5px;">
+            <div style="width:{progress}%;height:10px;background:#ff2b2b;border-radius:5px;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if st.button("🎬 NEW CASE", use_container_width=True):
         new_case()
         st.rerun()
 
-    if st.button("🔄 RESET", use_container_width=True):
+    if st.button("🔄 RESET CASE", use_container_width=True):
         new_case()
         st.rerun()
-
-
 # ---------------- START SCREEN ----------------
 
 if st.session_state.case is None:
@@ -229,12 +276,19 @@ case = st.session_state.case
 # ---------------- HEADER (CINEMATIC) ----------------
 
 st.markdown(f"""
-<div class="glass">
-    <div class="title">{case['title']}</div>
-    <div class="subtitle">Every clue hides a lie...</div>
+<div class="glass" style="text-align:center">
+    <div class="title">🕵️ {case['title']}</div>
+    <div class="subtitle">
+        🧠 Every clue changes the truth • Every contradiction exposes the killer
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<div style='text-align:center;color:#888;font-size:14px;margin-bottom:10px'>
+📡 Case File Active • Surveillance Mode Enabled • Truth is hidden in contradictions
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------- CASE INFO ----------------
 
@@ -277,57 +331,117 @@ st.markdown("## 🔍 Evidence Locker")
 
 for i, e in enumerate(case.get("evidence", [])):
 
-    locked = i >= st.session_state.clue_level
+    is_locked = i >= st.session_state.clue_level
 
-    if locked:
-        st.button("🔒 Locked Evidence", disabled=True, key=f"l{i}")
-    else:
-        if st.button(f"Inspect {e['name']}", key=f"e{i}"):
+    with st.container():
 
-            if e["name"] not in st.session_state.evidence:
-                st.session_state.evidence.append(e["name"])
-                st.session_state.score += 10
-                st.session_state.clue_level += 1
-                st.rerun()
+        if is_locked:
+            st.button(f"🔒 Evidence File Locked", disabled=True, key=f"l{i}")
+        else:
+            if st.button(f"🔓 Unlock File: {e['name']}", key=f"e{i}"):
+
+                if e["name"] not in st.session_state.evidence:
+                    st.session_state.evidence.append(e["name"])
+                    st.session_state.score += 10
+                    st.session_state.clue_level += 1
+                    st.success("📂 Evidence added to case board")
+                    st.rerun()
+
+# Evidence display (better cards)
+st.markdown("### 📁 Evidence Board")
+
+if not st.session_state.evidence:
+    st.info("No evidence unlocked yet... start investigating.")
 
 for e in case.get("evidence", []):
     if e["name"] in st.session_state.evidence:
         st.markdown(f"""
-        <div class="evidence">
-        🧩 {e['name']} → {e['description']}
+        <div style="
+            background: rgba(0,255,100,0.06);
+            border-left: 4px solid #00ff88;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        ">
+            🧩 <b>{e['name']}</b><br>
+            <span style="color:#aaa">{e['description']}</span>
         </div>
         """, unsafe_allow_html=True)
 
 
 # ---------------- CONTRADICTIONS ----------------
 
-st.markdown("## ⚠ Case Contradictions")
+st.markdown("## ⚠ Suspicious Patterns")
 
 for i, c in enumerate(case.get("contradictions", [])):
 
-    if st.button(f"Analyze {c['title']}", key=f"c{i}"):
+    if st.button(f"🔍 Analyze: {c['title']}", key=f"c{i}"):
 
         if c["title"] not in st.session_state.found_contradictions:
             st.session_state.found_contradictions.append(c["title"])
             st.session_state.score += 20
+            st.success("⚠ Contradiction added to evidence board")
             st.rerun()
 
+st.markdown("### 📌 Discovered Contradictions")
+
+if not st.session_state.found_contradictions:
+    st.warning("No contradictions found yet... investigate suspects carefully.")
+
 for c in st.session_state.found_contradictions:
-    st.error(f"⚠ {c}")
+    st.markdown(f"""
+    <div style="
+        background: rgba(255,50,50,0.08);
+        border-left: 4px solid #ff3b3b;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+    ">
+        ⚠️ {c}
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ---------------- FINAL VERDICT ----------------
 
-st.markdown("## 🎯 Final Verdict Room")
+st.markdown("## ⚖ COURTROOM // FINAL VERDICT")
+
+st.markdown("""
+<div style="
+    text-align:center;
+    padding:20px;
+    background:rgba(255,255,255,0.03);
+    border-radius:12px;
+">
+    🧑‍⚖️ The court awaits your judgment. Choose carefully.
+</div>
+""", unsafe_allow_html=True)
 
 names = [s["name"] for s in case.get("suspects", [])]
 
-choice = st.selectbox("Who committed the crime?", names if names else ["Unknown"])
+choice = st.selectbox("Who is the killer?", names if names else ["Unknown"])
 
 if st.button("⚖ Deliver Verdict"):
 
+    st.markdown("### 🎬 Verdict Processing...")
+
+    time.sleep(1)
+
     if choice == case.get("killer"):
-        st.success("🎉 CASE CLOSED — JUSTICE SERVED")
+        st.success("🎉 JUSTICE SERVED — CASE CLOSED")
         st.balloons()
+
+        st.markdown("""
+        <div style="text-align:center; color:#aaa;">
+        The truth always leaves traces behind...
+        </div>
+        """, unsafe_allow_html=True)
+
     else:
-        st.error(f"❌ Wrong suspect. True killer was: {case.get('killer')}")
+        st.error("❌ WRONG VERDICT")
+
+        st.markdown(f"""
+        <div style="color:#aaa;text-align:center;">
+        The real killer was: <b>{case.get('killer')}</b>
+        </div>
+        """, unsafe_allow_html=True)
