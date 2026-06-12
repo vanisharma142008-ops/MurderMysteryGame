@@ -5,14 +5,14 @@ import time
 import random
 import re
 
-# ---------------- CONFIG ----------------
+# ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="CASE FILES: Detective Mode",
+    page_title="🕵️ Case Files",
     layout="wide"
 )
 
-# ---------------- GEMINI SETUP ----------------
+# ---------------- API SETUP ----------------
 
 MODEL = None
 
@@ -27,83 +27,89 @@ except:
 
 st.markdown("""
 <style>
+
 .stApp {
     background: radial-gradient(circle at top, #0b0b0f, #050505);
     color: white;
-    font-family: Arial;
 }
 
+/* Title */
 .title {
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 900;
     color: #ff2a2a;
-}
-
-.card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    padding: 12px;
-    border-radius: 12px;
     margin-bottom: 10px;
 }
+
+/* Cards */
+.card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+}
+
+/* Buttons */
+.stButton>button {
+    border-radius: 10px;
+    font-weight: 600;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- SESSION ----------------
 
-for key, default in {
+for k, v in {
     "case": None,
     "score": 0,
-    "found_evidence": [],
-    "found_contradictions": [],
-    "clues_unlocked": 1,
-    "toast": False
+    "evidence": [],
+    "contradictions": [],
+    "clue": 1
 }.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 
-# ---------------- SAFE AI GENERATION ----------------
+# ---------------- SAFE AI CASE ----------------
 
 def generate_case():
 
     if MODEL is None:
-        st.error("❌ Gemini API not configured (check secrets.toml)")
         return None
 
     try:
         seed = int(time.time() * 1000) + random.randint(1, 999999)
 
         prompt = f"""
-You are a crime story generator.
+Create a unique murder mystery.
 
-Create a UNIQUE murder mystery.
+Seed: {seed}
 
-Random seed: {seed}
-
-Return ONLY valid JSON:
+Return ONLY JSON:
 
 {{
-"title": "",
-"victim": "",
-"crime_scene": "",
-"murder_time": "",
-"weapon": "",
-"killer": "",
-"hint": "",
-"suspects": [
+"title":"",
+"victim":"",
+"crime_scene":"",
+"murder_time":"",
+"weapon":"",
+"killer":"",
+"hint":"",
+"suspects":[
 {{"name":"","occupation":"","relationship":"","alibi":"","secret":"","motive":""}},
 {{"name":"","occupation":"","relationship":"","alibi":"","secret":"","motive":""}},
 {{"name":"","occupation":"","relationship":"","alibi":"","secret":"","motive":""}},
 {{"name":"","occupation":"","relationship":"","alibi":"","secret":"","motive":""}}
 ],
-"evidence": [
+"evidence":[
 {{"name":"","description":"","points_to":""}},
 {{"name":"","description":"","points_to":""}},
 {{"name":"","description":"","points_to":""}},
 {{"name":"","description":"","points_to":""}}
 ],
-"contradictions": [
+"contradictions":[
 {{"title":"","suspect":""}},
 {{"title":"","suspect":""}},
 {{"title":"","suspect":""}},
@@ -112,7 +118,7 @@ Return ONLY valid JSON:
 }}
 """
 
-        response = MODEL.generate_content(
+        res = MODEL.generate_content(
             prompt,
             generation_config={
                 "temperature": 1.3,
@@ -120,82 +126,79 @@ Return ONLY valid JSON:
             }
         )
 
-        if not response or not response.text:
-            st.error("❌ Empty response from AI")
-            return None
-
-        text = response.text.replace("```json", "").replace("```", "").strip()
+        text = res.text.replace("```json", "").replace("```", "")
 
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if not match:
-            st.error("❌ AI returned invalid format")
             return None
 
         case = json.loads(match.group())
         case["seed"] = seed
-
         return case
 
-    except Exception as e:
-        st.error(f"❌ AI Error: {e}")
+    except:
         return None
 
 
 # ---------------- RESET ----------------
 
-def reset_game():
-    new_case = generate_case()
+def new_game():
+    case = generate_case()
 
-    if new_case is None:
-        st.warning("⚠ Could not generate case. Try again.")
-        return
+    if case is None:
+        case = {
+            "title": "Offline Case (Fallback Mode)",
+            "victim": "Unknown",
+            "crime_scene": "Unknown",
+            "murder_time": "Unknown",
+            "weapon": "Unknown",
+            "killer": "Unknown",
+            "hint": "AI not available",
+            "suspects": [],
+            "evidence": [],
+            "contradictions": []
+        }
 
-    st.session_state.case = new_case
+    st.session_state.case = case
     st.session_state.score = 0
-    st.session_state.found_evidence = []
-    st.session_state.found_contradictions = []
-    st.session_state.clues_unlocked = 1
-    st.session_state.toast = False
+    st.session_state.evidence = []
+    st.session_state.contradictions = []
+    st.session_state.clue = 1
 
 
 # ---------------- SIDEBAR ----------------
 
 with st.sidebar:
-    st.title("🕵 CASE FILES")
+    st.title("🕵️ DETECTIVE PANEL")
 
     if st.button("🎬 New Case", use_container_width=True):
-        reset_game()
+        new_game()
         st.rerun()
 
-    if st.button("🔄 Restart", use_container_width=True):
-        reset_game()
+    if st.button("🔄 Reset", use_container_width=True):
+        new_game()
         st.rerun()
 
 
-# ---------------- START CHECK ----------------
+# ---------------- START ----------------
 
 if st.session_state.case is None:
     st.markdown("<div class='title'>CASE FILES</div>", unsafe_allow_html=True)
-    st.write("Click **New Case** to start.")
+    st.write("Click **New Case** to begin investigation.")
     st.stop()
 
 case = st.session_state.case
-
-# ---------------- TOAST (ONCE ONLY) ----------------
-
-if not st.session_state.toast:
-    st.toast("New case loaded 🕵️", icon="🔴")
-    st.session_state.toast = True
 
 
 # ---------------- HEADER ----------------
 
 st.markdown(f"""
 <div class="card">
-<div class="title">🕵 {case.get('title','Unknown Case')}</div>
-<b>Victim:</b> {case.get('victim')} <br>
-<b>Time:</b> {case.get('murder_time')} <br>
-<b>Weapon:</b> {case.get('weapon')} <br>
+<div class="title">🕵️ {case['title']}</div>
+
+<b>Victim:</b> {case['victim']} <br>
+<b>Time:</b> {case['murder_time']} <br>
+<b>Weapon:</b> {case['weapon']} <br>
 <b>Score:</b> {st.session_state.score}
 </div>
 """, unsafe_allow_html=True)
@@ -204,7 +207,7 @@ st.markdown(f"""
 # ---------------- CRIME SCENE ----------------
 
 st.subheader("📍 Crime Scene")
-st.info(case.get("crime_scene", "Unknown"))
+st.info(case["crime_scene"])
 
 
 # ---------------- SUSPECTS ----------------
@@ -214,42 +217,38 @@ st.subheader("👥 Suspects")
 for s in case.get("suspects", []):
     st.markdown(f"""
     <div class="card">
-    <b>{s.get('name','')}</b><br><br>
-    Occupation: {s.get('occupation','')}<br>
-    Relationship: {s.get('relationship','')}<br>
-    Alibi: {s.get('alibi','')}<br>
-    Secret: {s.get('secret','')}<br>
-    Motive: {s.get('motive','')}
+    <b>{s['name']}</b><br>
+    Occupation: {s['occupation']}<br>
+    Relationship: {s['relationship']}<br>
+    Alibi: {s['alibi']}<br>
+    Secret: {s['secret']}<br>
+    Motive: {s['motive']}
     </div>
     """, unsafe_allow_html=True)
 
 
 # ---------------- EVIDENCE ----------------
 
-st.subheader("🔍 Evidence")
+st.subheader("🔍 Evidence Board")
 
 for i, e in enumerate(case.get("evidence", [])):
 
-    locked = i >= st.session_state.clues_unlocked
+    locked = i >= st.session_state.clue
 
     if locked:
         st.button("🔒 Locked", disabled=True, key=f"l{i}")
     else:
-        if st.button(f"Reveal {e.get('name')}", key=f"e{i}"):
+        if st.button(f"Reveal {e['name']}", key=f"e{i}"):
 
-            if e.get("name") not in st.session_state.found_evidence:
-                st.session_state.found_evidence.append(e.get("name"))
+            if e["name"] not in st.session_state.evidence:
+                st.session_state.evidence.append(e["name"])
                 st.session_state.score += 10
-                st.session_state.clues_unlocked = min(
-                    st.session_state.clues_unlocked + 1,
-                    len(case.get("evidence", []))
-                )
+                st.session_state.clue += 1
                 st.rerun()
 
-
 for e in case.get("evidence", []):
-    if e.get("name") in st.session_state.found_evidence:
-        st.success(f"🧩 {e.get('name')} → {e.get('description')}")
+    if e["name"] in st.session_state.evidence:
+        st.success(f"🧩 {e['name']} → {e['description']}")
 
 
 # ---------------- CONTRADICTIONS ----------------
@@ -258,25 +257,32 @@ st.subheader("⚠ Contradictions")
 
 for i, c in enumerate(case.get("contradictions", [])):
 
-    if st.button(f"Check {c.get('title')}", key=f"c{i}"):
+    if st.button(f"Check {c['title']}", key=f"c{i}"):
 
-        if c.get("title") not in st.session_state.found_contradictions:
-            st.session_state.found_contradictions.append(c.get("title"))
+        if c["title"] not in st.session_state.contradictions:
+            st.session_state.contradictions.append(c["title"])
             st.session_state.score += 20
             st.rerun()
 
-
-for c in st.session_state.found_contradictions:
+for c in st.session_state.contradictions:
     st.error(f"⚠ {c}")
+
+
+# ---------------- HINT ----------------
+
+st.subheader("🧠 Hint")
+
+if st.button("Get Hint"):
+    st.info(case["hint"])
 
 
 # ---------------- FINAL ACCUSATION ----------------
 
-st.subheader("🎯 Final Accusation")
+st.subheader("🎯 Final Decision")
 
-names = [s.get("name") for s in case.get("suspects", [])]
+names = [s["name"] for s in case.get("suspects", [])]
 
-choice = st.selectbox("Who is the killer?", names)
+choice = st.selectbox("Who is the killer?", names if names else ["No suspects"])
 
 if st.button("⚖ Accuse"):
 
