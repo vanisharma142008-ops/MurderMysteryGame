@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from openai import OpenAI
 import json
 import time
 import random
@@ -8,56 +8,90 @@ import re
 # ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="🕵️ Case Files",
+    page_title="CASE FILES // DETECTIVE MODE",
     layout="wide"
 )
 
-# ---------------- API SETUP ----------------
+# ---------------- OPENROUTER AI ----------------
 
-MODEL = None
+client = None
 
 try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    MODEL = genai.GenerativeModel("gemini-1.5-flash")
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=st.secrets.get("OPENROUTER_API_KEY")
+    )
 except:
-    MODEL = None
+    client = None
 
-# ---------------- UI ----------------
+
+# ---------------- CINEMATIC UI ----------------
 
 st.markdown("""
 <style>
 
+/* DARK CINEMATIC BACKGROUND */
 .stApp {
-    background: radial-gradient(circle at top, #0b0b0f, #050505);
+    background: radial-gradient(circle at top, #0b0b0f, #000000);
     color: white;
+    font-family: 'Arial';
 }
 
-/* Title */
+/* TITLE (MOVIE STYLE) */
 .title {
-    font-size: 34px;
+    font-size: 44px;
     font-weight: 900;
-    color: #ff2a2a;
+    letter-spacing: 3px;
+    color: #ff2b2b;
+    text-align: center;
     margin-bottom: 10px;
 }
 
-/* Cards */
-.card {
+/* SUBTITLE */
+.subtitle {
+    text-align: center;
+    color: #aaaaaa;
+    margin-bottom: 20px;
+}
+
+/* GLASS CARD */
+.glass {
     background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 16px;
+    backdrop-filter: blur(12px);
+    margin-bottom: 12px;
+}
+
+/* SUSPECT CARD */
+.suspect {
+    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    border-left: 3px solid #ff2b2b;
     padding: 14px;
-    border-radius: 14px;
+    border-radius: 12px;
     margin-bottom: 10px;
 }
 
-/* Buttons */
+/* BUTTONS */
 .stButton>button {
     border-radius: 10px;
-    font-weight: 600;
+    font-weight: 700;
+    border: 1px solid #333;
+}
+
+/* SCARY EFFECT BOX */
+.evidence {
+    background: rgba(255,0,0,0.08);
+    border: 1px solid rgba(255,0,0,0.2);
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
 
 # ---------------- SESSION ----------------
 
@@ -65,29 +99,31 @@ for k, v in {
     "case": None,
     "score": 0,
     "evidence": [],
-    "contradictions": [],
-    "clue": 1
+    "clue_level": 1,
+    "found_contradictions": []
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
 
-# ---------------- SAFE AI CASE ----------------
+# ---------------- AI GENERATOR ----------------
 
 def generate_case():
 
-    if MODEL is None:
-        return None
-
     try:
+        if client is None:
+            return None
+
         seed = int(time.time() * 1000) + random.randint(1, 999999)
 
         prompt = f"""
-Create a unique murder mystery.
+You are a noir crime story engine.
+
+Generate a DARK murder mystery.
 
 Seed: {seed}
 
-Return ONLY JSON:
+Return ONLY valid JSON:
 
 {{
 "title":"",
@@ -118,42 +154,42 @@ Return ONLY JSON:
 }}
 """
 
-        res = MODEL.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 1.3,
-                "top_p": 0.95
-            }
+        res = client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON. No explanation."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=1.2
         )
 
-        text = res.text.replace("```json", "").replace("```", "")
+        text = res.choices[0].message.content.strip()
 
         match = re.search(r"\{.*\}", text, re.DOTALL)
+
         if not match:
             return None
 
-        case = json.loads(match.group())
-        case["seed"] = seed
-        return case
+        return json.loads(match.group())
 
     except:
         return None
 
 
-# ---------------- RESET ----------------
+# ---------------- START GAME ----------------
 
-def new_game():
+def new_case():
     case = generate_case()
 
     if case is None:
         case = {
-            "title": "Offline Case (Fallback Mode)",
-            "victim": "Unknown",
-            "crime_scene": "Unknown",
-            "murder_time": "Unknown",
+            "title": "BLACKOUT MURDER FILE",
+            "victim": "Unknown Victim",
+            "crime_scene": "Abandoned Mansion",
+            "murder_time": "03:33 AM",
             "weapon": "Unknown",
             "killer": "Unknown",
-            "hint": "AI not available",
+            "hint": "Even darkness leaves footprints.",
             "suspects": [],
             "evidence": [],
             "contradictions": []
@@ -162,40 +198,49 @@ def new_game():
     st.session_state.case = case
     st.session_state.score = 0
     st.session_state.evidence = []
-    st.session_state.contradictions = []
-    st.session_state.clue = 1
+    st.session_state.clue_level = 1
+    st.session_state.found_contradictions = []
 
 
 # ---------------- SIDEBAR ----------------
 
 with st.sidebar:
-    st.title("🕵️ DETECTIVE PANEL")
+    st.title("🕵️ DETECTIVE BOARD")
 
-    if st.button("🎬 New Case", use_container_width=True):
-        new_game()
+    if st.button("🎬 NEW CASE", use_container_width=True):
+        new_case()
         st.rerun()
 
-    if st.button("🔄 Reset", use_container_width=True):
-        new_game()
+    if st.button("🔄 RESET", use_container_width=True):
+        new_case()
         st.rerun()
 
 
-# ---------------- START ----------------
+# ---------------- START SCREEN ----------------
 
 if st.session_state.case is None:
     st.markdown("<div class='title'>CASE FILES</div>", unsafe_allow_html=True)
-    st.write("Click **New Case** to begin investigation.")
+    st.markdown("<div class='subtitle'>A crime awaits your judgment...</div>", unsafe_allow_html=True)
     st.stop()
 
 case = st.session_state.case
 
 
-# ---------------- HEADER ----------------
+# ---------------- HEADER (CINEMATIC) ----------------
 
 st.markdown(f"""
-<div class="card">
-<div class="title">🕵️ {case['title']}</div>
+<div class="glass">
+    <div class="title">{case['title']}</div>
+    <div class="subtitle">Every clue hides a lie...</div>
+</div>
+""", unsafe_allow_html=True)
 
+
+# ---------------- CASE INFO ----------------
+
+st.markdown("## 📁 Case Overview")
+st.markdown(f"""
+<div class="glass">
 <b>Victim:</b> {case['victim']} <br>
 <b>Time:</b> {case['murder_time']} <br>
 <b>Weapon:</b> {case['weapon']} <br>
@@ -206,88 +251,83 @@ st.markdown(f"""
 
 # ---------------- CRIME SCENE ----------------
 
-st.subheader("📍 Crime Scene")
+st.markdown("## 📍 Crime Scene")
 st.info(case["crime_scene"])
 
 
 # ---------------- SUSPECTS ----------------
 
-st.subheader("👥 Suspects")
+st.markdown("## 👤 Suspects")
 
 for s in case.get("suspects", []):
     st.markdown(f"""
-    <div class="card">
-    <b>{s['name']}</b><br>
-    Occupation: {s['occupation']}<br>
-    Relationship: {s['relationship']}<br>
-    Alibi: {s['alibi']}<br>
-    Secret: {s['secret']}<br>
-    Motive: {s['motive']}
+    <div class="suspect">
+        <b>{s['name']}</b><br>
+        {s['occupation']} | {s['relationship']}<br><br>
+        🕒 Alibi: {s['alibi']}<br>
+        🔒 Secret: {s['secret']}<br>
+        🎯 Motive: {s['motive']}
     </div>
     """, unsafe_allow_html=True)
 
 
 # ---------------- EVIDENCE ----------------
 
-st.subheader("🔍 Evidence Board")
+st.markdown("## 🔍 Evidence Locker")
 
 for i, e in enumerate(case.get("evidence", [])):
 
-    locked = i >= st.session_state.clue
+    locked = i >= st.session_state.clue_level
 
     if locked:
-        st.button("🔒 Locked", disabled=True, key=f"l{i}")
+        st.button("🔒 Locked Evidence", disabled=True, key=f"l{i}")
     else:
-        if st.button(f"Reveal {e['name']}", key=f"e{i}"):
+        if st.button(f"Inspect {e['name']}", key=f"e{i}"):
 
             if e["name"] not in st.session_state.evidence:
                 st.session_state.evidence.append(e["name"])
                 st.session_state.score += 10
-                st.session_state.clue += 1
+                st.session_state.clue_level += 1
                 st.rerun()
 
 for e in case.get("evidence", []):
     if e["name"] in st.session_state.evidence:
-        st.success(f"🧩 {e['name']} → {e['description']}")
+        st.markdown(f"""
+        <div class="evidence">
+        🧩 {e['name']} → {e['description']}
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ---------------- CONTRADICTIONS ----------------
 
-st.subheader("⚠ Contradictions")
+st.markdown("## ⚠ Case Contradictions")
 
 for i, c in enumerate(case.get("contradictions", [])):
 
-    if st.button(f"Check {c['title']}", key=f"c{i}"):
+    if st.button(f"Analyze {c['title']}", key=f"c{i}"):
 
-        if c["title"] not in st.session_state.contradictions:
-            st.session_state.contradictions.append(c["title"])
+        if c["title"] not in st.session_state.found_contradictions:
+            st.session_state.found_contradictions.append(c["title"])
             st.session_state.score += 20
             st.rerun()
 
-for c in st.session_state.contradictions:
+for c in st.session_state.found_contradictions:
     st.error(f"⚠ {c}")
 
 
-# ---------------- HINT ----------------
+# ---------------- FINAL VERDICT ----------------
 
-st.subheader("🧠 Hint")
-
-if st.button("Get Hint"):
-    st.info(case["hint"])
-
-
-# ---------------- FINAL ACCUSATION ----------------
-
-st.subheader("🎯 Final Decision")
+st.markdown("## 🎯 Final Verdict Room")
 
 names = [s["name"] for s in case.get("suspects", [])]
 
-choice = st.selectbox("Who is the killer?", names if names else ["No suspects"])
+choice = st.selectbox("Who committed the crime?", names if names else ["Unknown"])
 
-if st.button("⚖ Accuse"):
+if st.button("⚖ Deliver Verdict"):
 
     if choice == case.get("killer"):
-        st.success("🎉 CASE SOLVED!")
+        st.success("🎉 CASE CLOSED — JUSTICE SERVED")
         st.balloons()
     else:
-        st.error(f"❌ Wrong! Killer was {case.get('killer')}")
+        st.error(f"❌ Wrong suspect. True killer was: {case.get('killer')}")
